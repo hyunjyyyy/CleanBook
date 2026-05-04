@@ -1,8 +1,9 @@
 # 📚 CleanBook
 
-**CleanBook**은 교보문고, 알라딘, Yes24에서 원치 않는 출판사나 저자의 책을 검색 결과와 리스트에서 가려주는 Chrome 확장 프로그램입니다.
+**CleanBook**은 교보문고, 알라딘, Yes24에서 원치 않는 출판사나 저자의 책을 검색 결과와 리스트에서 가려주는 Chrome / FireFox 확장 프로그램입니다.
 
 👉 **[Chrome 웹 스토어 바로가기](https://chromewebstore.google.com/detail/aimjhnflkobjkaiahlaidmpailejaoki?utm_source=item-share-cb)**
+👉 **[FireFox 웹 스토어 바로가기](https://addons.mozilla.org/addon/cleanbook-출판사-필터/)**
 
 <br>
 
