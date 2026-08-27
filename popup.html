@@ -15,8 +15,8 @@
         }
 
         .input-group { display: flex; gap: 5px; margin-bottom: 10px; }
-        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
-        input:focus { border-color: #474c98; }
+        .input-group input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+        .input-group input:focus { border-color: #474c98; }
 
         button#addBtn {
             padding: 8px 15px; background-color: #474c98; color: white; border: none;
@@ -31,11 +31,15 @@
         #searchInput:focus { background-color: white; border-color: #ccc; }
 
         .option-row {
-            display: flex; align-items: flex-start; gap: 6px; margin-bottom: 10px;
-            font-size: 12px; color: #555;
+            display: flex; justify-content: flex-start; align-items: center; gap: 6px;
+            margin-bottom: 10px; padding: 7px 10px; background-color: #f1f1f1;
+            border-radius: 20px; font-size: 12px; color: #555;
         }
-        .option-row input[type="checkbox"] { margin: 2px 0 0 0; cursor: pointer; flex-shrink: 0; }
-        .option-row label { cursor: pointer; flex: 1; min-width: 0; line-height: 1.4; }
+        .option-row input[type="checkbox"] {
+            flex: none; width: 14px; height: 14px; margin: 0; padding: 0;
+            border: none; border-radius: 0; cursor: pointer;
+        }
+        .option-row label { flex: none; cursor: pointer; white-space: nowrap; }
 
         ul {
             list-style: none; padding: 0; margin: 0; max-height: 200px;
@@ -91,7 +95,7 @@
 
   <div class="option-row">
     <input type="checkbox" id="exactMatchToggle">
-    <label for="exactMatchToggle">정확히 일치하는 경우에만 차단</label>
+    <label for="exactMatchToggle" title="켜면 입력한 이름과 완전히 같을 때만 차단합니다">정확히 일치할 때만 차단</label>
   </div>
 
   <ul id="blockList"></ul>
