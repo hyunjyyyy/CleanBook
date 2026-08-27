@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     addPublisher(publisher);
   });
 
-  input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') addBtn.click();
+  input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) addBtn.click();
   });
 
   searchInput.addEventListener('input', loadList);
@@ -83,9 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
                       return;
                   }
 
+                  const validImported = importedData.filter(
+                      item => typeof item === 'string' && item.trim().length > 0
+                  );
+
                   browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
                       const currentBlocked = result.blockedPublishers || [];
-                      const newSet = new Set([...currentBlocked, ...importedData]);
+                      const newSet = new Set([...currentBlocked, ...validImported]);
                       const mergedList = Array.from(newSet);
 
                       browserAPI.storage.sync.set({ blockedPublishers: mergedList }, () => {
@@ -145,23 +149,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
       blocked.forEach(pub => {
         const li = document.createElement('li');
+        const nameSpan = document.createElement('span');
 
-        let displayText = pub;
         if (keyword) {
             const safeKeyword = escapeRegExp(keyword);
             const regex = new RegExp(`(${safeKeyword})`, 'gi');
-            displayText = pub.replace(regex, '<b style="color:#474c98;">$1</b>');
+            pub.split(regex).forEach(part => {
+                if (!part) return;
+                if (part.toLowerCase() === keyword.toLowerCase()) {
+                    const b = document.createElement('b');
+                    b.style.color = '#474c98';
+                    b.textContent = part;
+                    nameSpan.appendChild(b);
+                } else {
+                    nameSpan.appendChild(document.createTextNode(part));
+                }
+            });
+        } else {
+            nameSpan.textContent = pub;
         }
 
-        li.innerHTML = `<span>${displayText}</span> <span class="del">X</span>`;
-
-        li.querySelector('.del').addEventListener('click', () => {
+        const delSpan = document.createElement('span');
+        delSpan.className = 'del';
+        delSpan.textContent = 'X';
+        delSpan.addEventListener('click', () => {
           browserAPI.storage.sync.get(['blockedPublishers'], (res) => {
               const currentList = res.blockedPublishers || [];
               const newList = currentList.filter(t => t !== pub);
               browserAPI.storage.sync.set({ blockedPublishers: newList }, loadList);
           });
         });
+
+        li.appendChild(nameSpan);
+        li.appendChild(delSpan);
         list.appendChild(li);
       });
     });
