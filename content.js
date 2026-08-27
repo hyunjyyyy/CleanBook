@@ -31,6 +31,49 @@ const SITE_CONFIG = {
 
 const hostname = window.location.hostname;
 
+// 차단 목록 메모리 캐시. MutationObserver 콜백마다 storage.sync.get을
+// 부르는 대신 이 캐시를 읽고, storage.onChanged로만 갱신한다.
+let blockedListCache = [];
+
+// dataset.checked(영구 DOM 속성) 대신 WeakSet으로 검사 여부를 추적.
+// 페이지 DOM에 흔적을 남기지 않고, 목록이 바뀌면 새 WeakSet으로 교체해
+// 전체 재검사를 유도한다.
+let checkedSets = {
+    kyobo: new WeakSet(),
+    aladin: new WeakSet(),
+    yes24: new WeakSet()
+};
+
+function debounceRAF(fn) {
+    let scheduled = false;
+    return (...args) => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            fn(...args);
+        });
+    };
+}
+
+browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
+    blockedListCache = result.blockedPublishers || [];
+    runCurrentSite();
+});
+
+browserAPI.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync' || !changes.blockedPublishers) return;
+    blockedListCache = changes.blockedPublishers.newValue || [];
+    checkedSets = { kyobo: new WeakSet(), aladin: new WeakSet(), yes24: new WeakSet() };
+    runCurrentSite();
+});
+
+function runCurrentSite() {
+    if (hostname.includes('kyobobook.co.kr')) runKyobo();
+    else if (hostname.includes('aladin.co.kr')) runAladin();
+    else if (hostname.includes('yes24.com')) runYes24();
+}
+
 if (hostname.includes('kyobobook.co.kr')) {
     kyoboInit();
 } else if (hostname.includes('aladin.co.kr')) {
@@ -44,23 +87,19 @@ if (hostname.includes('kyobobook.co.kr')) {
 // ========================================================
 function kyoboInit() {
     log("[CleanBook] 교보문고 모듈 시작");
-    const observer = new MutationObserver(() => runKyobo());
-    runKyobo();
+    const observer = new MutationObserver(debounceRAF(() => runKyobo()));
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function runKyobo() {
-    browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
-        const blockedList = result.blockedPublishers || [];
-        if (blockedList.length > 0) kyoboBlock(blockedList);
-    });
+    if (blockedListCache.length > 0) kyoboBlock(blockedListCache);
 }
 
 function kyoboBlock(blockedList) {
     const targets = document.querySelectorAll(SITE_CONFIG.kyobo.targetSelector);
 
     targets.forEach(target => {
-        if (target.dataset.checked) return;
+        if (checkedSets.kyobo.has(target)) return;
 
         const text = target.innerText.trim();
         if (text.length < 1) return;
@@ -84,7 +123,7 @@ function kyoboBlock(blockedList) {
                 blockItem(finalContainer, matchedKeyword, SITE_CONFIG.kyobo.color);
             }
         }
-        target.dataset.checked = "true";
+        checkedSets.kyobo.add(target);
     });
 }
 
@@ -93,23 +132,19 @@ function kyoboBlock(blockedList) {
 // ========================================================
 function aladinInit() {
     log("[CleanBook] 알라딘 모듈 시작");
-    const observer = new MutationObserver(() => runAladin());
-    runAladin();
+    const observer = new MutationObserver(debounceRAF(() => runAladin()));
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function runAladin() {
-    browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
-        const blockedList = result.blockedPublishers || [];
-        if (blockedList.length > 0) aladinBlock(blockedList);
-    });
+    if (blockedListCache.length > 0) aladinBlock(blockedListCache);
 }
 
 function aladinBlock(blockedList) {
     const targets = document.querySelectorAll(SITE_CONFIG.aladin.targetSelector);
 
     targets.forEach(target => {
-        if (target.dataset.checked) return;
+        if (checkedSets.aladin.has(target)) return;
 
         const text = target.innerText.trim();
         const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
@@ -130,7 +165,7 @@ function aladinBlock(blockedList) {
                 blockItem(container, matchedKeyword, SITE_CONFIG.aladin.color);
             }
         }
-        target.dataset.checked = "true";
+        checkedSets.aladin.add(target);
     });
 }
 
@@ -139,23 +174,19 @@ function aladinBlock(blockedList) {
 // ========================================================
 function yes24Init() {
     log("[CleanBook] Yes24 모듈 시작");
-    const observer = new MutationObserver(() => runYes24());
-    runYes24();
+    const observer = new MutationObserver(debounceRAF(() => runYes24()));
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function runYes24() {
-    browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
-        const blockedList = result.blockedPublishers || [];
-        if (blockedList.length > 0) yes24Block(blockedList);
-    });
+    if (blockedListCache.length > 0) yes24Block(blockedListCache);
 }
 
 function yes24Block(blockedList) {
     const targets = document.querySelectorAll(SITE_CONFIG.yes24.targetSelector);
 
     targets.forEach(target => {
-        if (target.dataset.checked) return;
+        if (checkedSets.yes24.has(target)) return;
 
         const text = target.innerText.trim();
         const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
@@ -173,7 +204,7 @@ function yes24Block(blockedList) {
                 blockItem(container, matchedKeyword, SITE_CONFIG.yes24.color);
             }
         }
-        target.dataset.checked = "true";
+        checkedSets.yes24.add(target);
     });
 }
 
