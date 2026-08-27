@@ -13,12 +13,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportBtn = document.getElementById('exportBtn');
   const importBtn = document.getElementById('importBtn');
   const importInput = document.getElementById('importInput');
+  const exactMatchToggle = document.getElementById('exactMatchToggle');
+
+  const MIN_KEYWORD_LENGTH = 2;
 
   loadList();
+
+  browserAPI.storage.sync.get(['exactMatch'], (result) => {
+      exactMatchToggle.checked = !!result.exactMatch;
+  });
+
+  exactMatchToggle.addEventListener('change', () => {
+      browserAPI.storage.sync.set({ exactMatch: exactMatchToggle.checked });
+  });
 
   addBtn.addEventListener('click', () => {
     const publisher = input.value.trim();
     if (!publisher) return;
+    if (publisher.length < MIN_KEYWORD_LENGTH) {
+        alert(`${MIN_KEYWORD_LENGTH}자 이상 입력해주세요. 1글자는 오차단 위험이 커서 차단되지 않습니다.`);
+        return;
+    }
     addPublisher(publisher);
   });
 

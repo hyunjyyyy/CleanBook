@@ -12,7 +12,12 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 const SITE_CONFIG = {
   kyobo: {
-    targetSelector: '.prod_publish, .prod_author, .publish, .author, .prod_info, .prodDt_info, .prodDt_detail span',
+    // [FIX] .prod_info는 저자/출판사가 아니라 도서 "제목"을 담고 있어 제거함
+    // (예: "[국내도서] 수족관"). 남겨두면 제목에 우연히 키워드가 포함된
+    // 무관한 책까지 차단됨. .prodDt_info, .prodDt_detail span은 교보 상품
+    // 상세페이지 리뉴얼로 더 이상 매칭되는 요소가 없어(0건) 그대로 둠 —
+    // 상세페이지용 셀렉터는 별도로 재설계 필요.
+    targetSelector: '.prod_publish, .prod_author, .publish, .author, .prodDt_info, .prodDt_detail span',
     color: '#474c98'
   },
   aladin: {
@@ -44,6 +49,22 @@ let checkedSets = {
     yes24: new WeakSet()
 };
 
+// 정확히 일치 모드: 켜지면 cleanText === keyword일 때만 매칭.
+// 꺼져있으면(기본) 기존처럼 부분일치(includes)로 매칭.
+let exactMatchMode = false;
+
+// 1글자 키워드는 거의 모든 페이지를 오차단하므로 매칭 대상에서 제외.
+const MIN_KEYWORD_LENGTH = 2;
+
+function findBlockedMatch(blockedList, cleanText) {
+    return blockedList.find(blocked => {
+        if (!blocked) return false;
+        const keyword = blocked.toLowerCase().trim();
+        if (keyword.length < MIN_KEYWORD_LENGTH) return false;
+        return exactMatchMode ? cleanText === keyword : cleanText.includes(keyword);
+    });
+}
+
 function debounceRAF(fn) {
     let scheduled = false;
     return (...args) => {
@@ -56,14 +77,19 @@ function debounceRAF(fn) {
     };
 }
 
-browserAPI.storage.sync.get(['blockedPublishers'], (result) => {
+browserAPI.storage.sync.get(['blockedPublishers', 'exactMatch'], (result) => {
     blockedListCache = result.blockedPublishers || [];
+    exactMatchMode = !!result.exactMatch;
     runCurrentSite();
 });
 
 browserAPI.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== 'sync' || !changes.blockedPublishers) return;
-    blockedListCache = changes.blockedPublishers.newValue || [];
+    if (areaName !== 'sync') return;
+    if (!changes.blockedPublishers && !changes.exactMatch) return;
+
+    if (changes.blockedPublishers) blockedListCache = changes.blockedPublishers.newValue || [];
+    if (changes.exactMatch) exactMatchMode = !!changes.exactMatch.newValue;
+
     checkedSets = { kyobo: new WeakSet(), aladin: new WeakSet(), yes24: new WeakSet() };
     runCurrentSite();
 });
@@ -105,11 +131,7 @@ function kyoboBlock(blockedList) {
         if (text.length < 1) return;
 
         const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
-        const matchedKeyword = blockedList.find(blocked => {
-            if (!blocked) return false;
-            const keyword = blocked.toLowerCase().trim();
-            return keyword.length >= 1 && cleanText.includes(keyword);
-        });
+        const matchedKeyword = findBlockedMatch(blockedList, cleanText);
 
         if (matchedKeyword) {
             const container = target.closest('.prod_item') ||
@@ -149,11 +171,7 @@ function aladinBlock(blockedList) {
         const text = target.innerText.trim();
         const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
 
-        const matchedKeyword = blockedList.find(blocked => {
-            if (!blocked) return false;
-            const keyword = blocked.toLowerCase().trim();
-            return keyword.length >= 1 && cleanText.includes(keyword);
-        });
+        const matchedKeyword = findBlockedMatch(blockedList, cleanText);
 
         if (matchedKeyword) {
             const container = target.closest('.ss_book_box') ||
@@ -190,11 +208,7 @@ function yes24Block(blockedList) {
 
         const text = target.innerText.trim();
         const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
-        const matchedKeyword = blockedList.find(blocked => {
-            if (!blocked) return false;
-            const keyword = blocked.toLowerCase().trim();
-            return keyword.length >= 1 && cleanText.includes(keyword);
-        });
+        const matchedKeyword = findBlockedMatch(blockedList, cleanText);
 
         if (matchedKeyword) {
             // 범인(저자/출판사)을 찾았으니, 책 덩어리(Container)를 찾아 올라갑니다.
